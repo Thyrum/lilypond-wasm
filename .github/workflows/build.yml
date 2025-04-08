@@ -1,0 +1,23 @@
+name: "emsdk"
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: get the latest lilypond release tag
+        id: latestrelease
+        run: echo "::set-output name=releasetag::$(curl -s https://api.github.com/repos/lilypond/lilypond/releases/latest | jq -r '.tag_name')"
+      - uses: actions/checkout@v4
+        with:
+          repository: lilypond/lilypond
+          ref: ${{ steps.latestrelease.outputs.releasetag }}
+          path: lilypond
+      - name: Configure lilypond
+        working-directory: ./lilypond
+        run: |
+          mkdir build
+          cd build
+          ../autogen.sh --noconfigure
+          emconfigure ../configure
