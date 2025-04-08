@@ -6,13 +6,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: mymindstorm/setup-emsdk@v14
-      - name: get the latest lilypond release tag
+      - name: get the latest release tags
         id: latestrelease
-        run: echo "::set-output name=releasetag::$(curl -s https://api.github.com/repos/lilypond/lilypond/releases/latest | jq -r '.tag_name')"
+        run: |
+          echo "{lilypond}={$(curl -s https://api.github.com/repos/lilypond/lilypond/releases/latest | jq -r '.tag_name')}" >> $GITHUB_OUTPUT
+          echo "{bdwgc}={$(curl -s https://api.github.com/repos/ivmai/bdwgc/releases/latest | jq -r '.tag_name')}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          repository: ivmai/bdwgc
+          ref: ${{ steps.latestrelease.outputs.bdwgc }}
+          path: bdwgc
+      - name: Configure bdwgc
+        working-directory: ./bdwgc
+        run: |
+          ./autogen.sh
+          emconfigure ./configure
+          emmake sudo make install
       - uses: actions/checkout@v4
         with:
           repository: lilypond/lilypond
-          ref: ${{ steps.latestrelease.outputs.releasetag }}
+          ref: ${{ steps.latestrelease.outputs.lilypond }}
           path: lilypond
       - name: Configure lilypond
         working-directory: ./lilypond
