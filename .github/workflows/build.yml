@@ -23,8 +23,9 @@ jobs:
         working-directory: ./bdwgc
         run: |
           ./autogen.sh
-          emconfigure ./configure
-          emmake sudo make install
+          mkdir ../prefix/
+          emconfigure ./configure --prefix ${PWD}/../prefix/
+          emmake make
       - uses: actions/checkout@v4
         with:
           repository: lilypond/lilypond
@@ -32,11 +33,13 @@ jobs:
           path: lilypond
       - name: Install additional lilypond dependencies
         run: |
-          sudo apt-get install gettext
+          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt update
+          sudo apt-get build-dep lilypond
       - name: Configure lilypond
         working-directory: ./lilypond
         run: |
           mkdir build
           cd build
           ../autogen.sh --noconfigure
-          emconfigure ../configure
+          BDWGC_LIBS="-L../prefix/lib -lgc -ldl" BDWGC_CFLAGS="-I../prefix/include" emconfigure ../configure
