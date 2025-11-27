@@ -1,45 +1,16 @@
-name: "emsdk"
+name: "docker-2-wasm"
 on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: mymindstorm/setup-emsdk@v14
-        with:
-          version: 4.0.6
-          actions-cache-folder: "emsdk-cache"
-      - name: get the latest release tags
-        id: latestrelease
-        run: |
-          echo "{lilypond}={$(curl -s https://api.github.com/repos/lilypond/lilypond/releases/latest | jq -r '.tag_name')}" >> $GITHUB_OUTPUT
-          echo "{bdwgc}={$(curl -s https://api.github.com/repos/ivmai/bdwgc/releases/latest | jq -r '.tag_name')}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
+
+      - name: Convert to wasm
+        run: chmod +x build.sh && ./build.sh
+      
+      - uses: actions/upload-artifact@v4
         with:
-          repository: ivmai/bdwgc
-          ref: ${{ steps.latestrelease.outputs.bdwgc }}
-          path: bdwgc
-      - name: Configure bdwgc
-        working-directory: ./bdwgc
-        run: |
-          ./autogen.sh
-          mkdir ../prefix/
-          emconfigure ./configure --prefix ${PWD}/../prefix/
-          emmake make
-      - uses: actions/checkout@v4
-        with:
-          repository: lilypond/lilypond
-          ref: ${{ steps.latestrelease.outputs.lilypond }}
-          path: lilypond
-      - name: Install additional lilypond dependencies
-        run: |
-          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
-          sudo apt update
-          sudo apt-get build-dep lilypond
-      - name: Configure lilypond
-        working-directory: ./lilypond
-        run: |
-          mkdir build
-          cd build
-          ../autogen.sh --noconfigure
-          BDWGC_LIBS="-L../prefix/lib -lgc -ldl" BDWGC_CFLAGS="-I../prefix/include" emconfigure ../configure
+          name: lilypond-wasm
+          path: lilypond-wasm
