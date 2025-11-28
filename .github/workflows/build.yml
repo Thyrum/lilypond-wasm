@@ -1,4 +1,4 @@
-name: "docker-2-wasm"
+name: "Build lilypond wasm"
 on: [push]
 
 env:
@@ -10,7 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Convert to wasm
+      - name: Cache lilypond-wasm-js
+        id: cache-lilypond-wasm-js
+        uses: actions/cache@v4
+        with:
+          key: lilypond-wasm-js-${{ env.LILYPOND_VERSION }}-${{ hashFiles('build.sh') }}
+          path: lilypond-wasm
+
+      - if: ${{ steps.cache-lilypond-wasm-js.outputs.cache-hit != 'true' }}
+        name: Convert to wasm
         run: chmod +x build.sh && ./build.sh $LILYPOND_VERSION --to-js
       
       - uses: actions/upload-artifact@v4
@@ -22,10 +30,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Convert to wasm
+      - name: Cache lilypond-wasm
+        id: cache-lilypond-wasm
+        uses: actions/cache@v4
+        with:
+          key: lilypond-wasm-${{ env.LILYPOND_VERSION }}-${{ hashFiles('build.sh') }}
+          path: lilypond-wasm
+
+      - if: ${{ steps.cache-lilypond-wasm.outputs.cache-hit != 'true' }}
+        name: Convert to wasm
         run: chmod +x build.sh && ./build.sh $LILYPOND_VERSION --no-js
       
       - uses: actions/upload-artifact@v4
         with:
           name: lilypond-wasm
           path: lilypond-wasm
+  build-pages:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    needs: build-wasi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: lilypond-wasm
+
+      - run: mv out.wasm static/out.wasm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-pages
+          path: static/
+  deploy-pages:
+    if: github.ref == 'refs/heads/master'
+    needs: build-pages
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
