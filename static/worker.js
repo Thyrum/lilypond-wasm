@@ -1,8 +1,9 @@
+const origin = location.href.substring(0, location.href.lastIndexOf("/"));
 importScripts("https://cdn.jsdelivr.net/npm/xterm-pty@0.9.4/workerTools.js");
-importScripts(location.origin + "/browser_wasi_shim/index.js");
-importScripts(location.origin + "/browser_wasi_shim/wasi_defs.js");
-importScripts(location.origin + "/worker-util.js");
-importScripts(location.origin + "/wasi-util.js");
+importScripts(origin + "/browser_wasi_shim/index.js");
+importScripts(origin + "/browser_wasi_shim/wasi_defs.js");
+importScripts(origin + "/worker-util.js");
+importScripts(origin + "/wasi-util.js");
 
 onmessage = (msg) => {
   if (serveIfInitMsg(msg)) {

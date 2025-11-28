@@ -31,12 +31,13 @@
 
       var nwStack;
       var netParam = getNetParam();
-      var workerImage = location.origin + "/out.wasm";
+			const origin = location.href.substring(0, location.href.lastIndexOf("/"));
+      var workerImage = origin + "/out.wasm";
       if (netParam) {
           if (netParam.mode == 'delegate') {
               nwStack = delegate(worker, workerImage, netParam.param);
           } else if (netParam.mode == 'browser') {
-						nwStack = newStack(worker, workerImage, new Worker("./stack-worker.js"+location.search), location.origin + "/c2w-net-proxy.wasm");
+						nwStack = newStack(worker, workerImage, new Worker("./stack-worker.js"+location.search), origin + "/c2w-net-proxy.wasm");
           }
       }
       if (!nwStack) {
