@@ -1,14 +1,29 @@
 name: "docker-2-wasm"
 on: [push]
 
+env:
+  LILYPOND_VERSION: 2.25.12
+
 jobs:
-  build:
+  build-js:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Convert to wasm
-        run: chmod +x build.sh && ./build.sh
+        run: chmod +x build.sh && ./build.sh $LILYPOND_VERSION --to-js
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lilypond-wasm-js
+          path: lilypond-wasm
+  build-wasi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Convert to wasm
+        run: chmod +x build.sh && ./build.sh $LILYPOND_VERSION --no-js
       
       - uses: actions/upload-artifact@v4
         with:
