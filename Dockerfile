@@ -1,0 +1,4 @@
+ARG LILYPOND_VERSION
+
+FROM jeandeaual/lilypond:${LILYPOND_VERSION}
+USER root

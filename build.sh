@@ -32,6 +32,10 @@ esac
 curl -L "https://github.com/container2wasm/container2wasm/releases/download/v0.8.3/container2wasm-v0.8.3-linux-amd64.tar.gz" > c2w.tar.gz
 tar -xvf c2w.tar.gz
 
+echo "::group::Building docker image"
+docker build -t lilypond --build-arg LILYPOND_VERSION="$LILYPOND_VERSION" .
+echo "::endgroup::"
+
 echo "::group::Building lilypond-wasm"
-./c2w $TO_JS_FLAG jeandeaual/lilypond:${LILYPOND_VERSION} lilypond-wasm/
+./c2w $TO_JS_FLAG lilypond lilypond-wasm/
 echo "::endgroup::"
