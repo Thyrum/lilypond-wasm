@@ -56,11 +56,15 @@ jobs:
         with:
           name: lilypond-wasm
 
-      - run: mv out.wasm static/out.wasm
+      - run: mv out.wasm src/assets/out.wasm
+
+      - run: npm ci
+
+      - run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: static/
+          path: dist/
   deploy-pages:
     if: github.ref == 'refs/heads/master'
     needs: build-pages
