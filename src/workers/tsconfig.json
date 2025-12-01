@@ -1,0 +1,10 @@
+{
+	"extends": "../generic-tsconfig.json",
+	"compilerOptions": {
+		"emitDeclarationOnly": true,
+		"lib": [
+			"ES2022",
+			"webworker"
+		]
+	}
+}
