@@ -8,9 +8,20 @@
     <title>lilypond-wasm</title>
   </head>
   <body>
-    <div id="status"></div>
-    <div class="log" id="log"></div>
-    <div id="result"></div>
+    <div class="row">
+      <div class="column">
+        <textarea id="source" class="lily-input">
+\version "2.24.2"
+\header { title = "Hello, WASI!" }
+{ c' d' e' f' g' a' b' c'' }
+        </textarea>
+        <div id="status" class="status"></div>
+        <div class="log" id="log"></div>
+      </div>
+      <div class="column">
+      <div id="result"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main/main.ts"></script>
   </body>
 </html>

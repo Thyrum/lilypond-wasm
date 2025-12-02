@@ -1,6 +1,7 @@
 import "./style.css";
 
 import Worker from "./../workers/worker?worker";
+import { addMessage } from "./log";
 
 const worker = new Worker();
 
@@ -39,7 +40,7 @@ worker.onmessage = function (
       status!.textContent = e.data.content as string;
       break;
     case "log":
-      log!.textContent += (e.data.content as string) + "\n";
+      addMessage(log!, e.data.content as string);
       break;
     case "result":
       const image = document.createElement("img");
