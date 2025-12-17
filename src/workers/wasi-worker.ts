@@ -8,36 +8,53 @@ import {
 import * as wasi_util from "./wasi-util";
 import wasmModuleUrl from "../assets/out.wasm?url";
 
+import type { WasiCommand } from "../types/wasi-command";
+import type { WasiOutputResponse, WasiResponse } from "../types/wasi-response";
+
 // const command =
 //   "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts --png -dresolution=600 -dcrop main.ly".split(
 //     " ",
 //   );
 
-const command =
+const defaultCommand =
   "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts --png main.ly".split(
     " ",
   );
 
-onmessage = function () {
-  startWasi(["arg0"].concat(command));
+onmessage = function (command: MessageEvent<WasiCommand>) {
+  switch (command.data.type) {
+    case "init":
+      postMessage({ type: "ready" } as WasiResponse);
+      return;
+    case "run-wasi":
+      startWasi(["arg0"].concat(defaultCommand));
+      return;
+  }
 };
 
 function statusUpdate(message: string) {
-  postMessage({ type: "status-update", content: message });
+  postMessage({
+    type: "status-update",
+    value: message,
+  } as WasiResponse);
 }
-function logMessage(message: string) {
-  postMessage({ type: "log", content: message });
+
+function logMessage(
+  message: string,
+  stream: WasiOutputResponse["stream"] = "stdout",
+) {
+  postMessage({
+    type: "wasi-output",
+    stream,
+    value: message,
+  } as WasiResponse);
 }
 
 async function startWasi(args: string[]) {
   statusUpdate(`Loading WASM module from: ${wasmModuleUrl}`);
   const stdin = new OpenFile(new File([]));
-  const stdout = ConsoleStdout.lineBuffered((msg) =>
-    logMessage(`[WASI stdout] ${msg}`),
-  );
-  const stderr = ConsoleStdout.lineBuffered((msg) =>
-    logMessage(`[WASI stderr] ${msg}`),
-  );
+  const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
+  const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
   const root = new PreopenDirectory("/", new Map());
   const appdir = new PreopenDirectory(
     "/app",
@@ -67,7 +84,7 @@ async function startWasi(args: string[]) {
   const generatedFile = appdir.dir.contents.get("main.png");
   if (generatedFile instanceof File) {
     const pngData = generatedFile.data;
-    postMessage({ type: "result", content: pngData });
+    postMessage({ type: "wasi-result", value: pngData } as WasiResponse);
   } else {
     statusUpdate("Unable to decode generated file");
   }

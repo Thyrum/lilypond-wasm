@@ -1,7 +1,10 @@
 import "./style.css";
 
-import Worker from "./../workers/worker?worker";
+import Worker from "./../workers/wasi-worker?worker";
 import { addMessage } from "./log";
+
+import type { WasiResponse } from "../types/wasi-response";
+import type { WasiCommand } from "../types/wasi-command";
 
 const worker = new Worker();
 
@@ -29,28 +32,26 @@ function download_file(name: string, contents: BlobPart, mime_type: string) {
   dlink.remove();
 }
 
-worker.onmessage = function (
-  e: MessageEvent<{
-    type: "status-update" | "log" | "result";
-    content: string | Uint8Array;
-  }>,
-) {
+worker.onmessage = function (e: MessageEvent<WasiResponse>) {
   switch (e.data.type) {
+    case "ready":
+      worker.postMessage({ type: "run-wasi" } as WasiCommand);
+      return;
     case "status-update":
-      status!.textContent = e.data.content as string;
-      break;
-    case "log":
-      addMessage(log!, e.data.content as string);
-      break;
-    case "result":
+      status!.textContent = e.data.value;
+      return;
+    case "wasi-output":
+      addMessage(log!, `[${e.data.stream}] ${e.data.value}`);
+      return;
+    case "wasi-result":
       const image = document.createElement("img");
+      const content = e.data.value as BlobPart;
       image.src = URL.createObjectURL(
-        new Blob([e.data.content as BlobPart], { type: "image/png" }),
+        new Blob([content], { type: "image/png" }),
       );
-      image.onclick = () =>
-        download_file("result.png", e.data.content as BlobPart, "image/png");
+      image.onclick = () => download_file("result.png", content, "image/png");
       result!.appendChild(image);
-      break;
+      return;
   }
 };
-worker.postMessage("Start work");
+worker.postMessage({ type: "init" } as WasiCommand);
