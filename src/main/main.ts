@@ -3,7 +3,7 @@ import "./style.css";
 import Worker from "./../workers/wasi-worker?worker";
 import { addMessage } from "./log";
 
-import type { WasiResponse } from "../types/wasi-response";
+import type { DirectoryMap, WasiResponse } from "../types/wasi-response";
 import type { WasiCommand } from "../types/wasi-command";
 
 const worker = new Worker();
@@ -23,11 +23,7 @@ compileButton.onclick = function () {
   } satisfies WasiCommand);
 };
 
-function download_file(name: string, contents: BlobPart, mime_type: string) {
-  mime_type = mime_type || "text/plain";
-
-  var blob = new Blob([contents], { type: mime_type });
-
+function download_file(name: string, blob: Blob) {
   var dlink = document.createElement("a");
   dlink.download = name;
   dlink.href = window.URL.createObjectURL(blob);
@@ -43,6 +39,43 @@ function download_file(name: string, contents: BlobPart, mime_type: string) {
   dlink.remove();
 }
 
+function getImages(dir: DirectoryMap): Map<string, Blob> {
+  let result = new Map<string, Blob>();
+
+  for (let [path, content] of dir) {
+    if (content instanceof Map) {
+      const subImages = getImages(content);
+      for (let [subPath, blob] of subImages) {
+        result.set(path + "/" + subPath, blob);
+      }
+    } else if (content instanceof Uint8Array) {
+      if (path.endsWith(".png")) {
+        result.set(path, new Blob([content], { type: "image/png" }));
+      }
+    }
+  }
+  return result;
+}
+
+function displayImages(images: Map<string, Blob>, container: HTMLElement) {
+  const selector = document.createElement("select");
+  const image = document.createElement("img");
+  selector.onchange = function () {
+    image.src = window.URL.createObjectURL(images.get(selector.value)!);
+  };
+  if (images.size > 0) {
+    image.src = window.URL.createObjectURL(images.values().next().value!);
+  }
+  for (const filename of images.keys()) {
+    selector.options.add(new Option(filename, filename));
+  }
+  if (images.size <= 1) {
+    selector.disabled = true;
+  }
+  container.appendChild(selector);
+  container.appendChild(image);
+}
+
 worker.onmessage = function (e: MessageEvent<WasiResponse>) {
   switch (e.data.type) {
     case "ready":
@@ -55,17 +88,15 @@ worker.onmessage = function (e: MessageEvent<WasiResponse>) {
       addMessage(log!, `[${e.data.stream}] ${e.data.value}`);
       return;
     case "wasi-result":
-      const image = document.createElement("img");
-      const content = e.data.value as BlobPart;
-      image.src = URL.createObjectURL(
-        new Blob([content], { type: "image/png" }),
-      );
-      image.onclick = () => download_file("result.png", content, "image/png");
-      result.insertBefore(image, result.firstChild);
       addMessage(
         log!,
         `[lily-result] Compilation time: ${(e.data.compilationTime / 1000).toFixed(2)} seconds`,
       );
+      console.log("WASI Result:", e.data);
+      const images = getImages(e.data.files);
+      console.log("Extracted images:", images);
+      result.innerHTML = "";
+      displayImages(images, result);
       return;
   }
 };

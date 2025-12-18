@@ -1,3 +1,5 @@
+import { Directory } from "@bjorn3/browser_wasi_shim";
+
 export type WasiResponse =
   | ReadyResponse
   | WasiOutputResponse
@@ -14,9 +16,11 @@ export interface WasiOutputResponse {
   value: string;
 }
 
+export type DirectoryMap = Map<string, DirectoryMap | Uint8Array>;
+
 export interface WasiResultResponse {
   type: "wasi-result";
-  value: Uint8Array;
+  files: DirectoryMap;
   compilationTime: number;
 }
 
