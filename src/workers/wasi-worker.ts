@@ -17,7 +17,7 @@ import type { WasiOutputResponse, WasiResponse } from "../types/wasi-response";
 //   );
 
 const defaultCommand =
-  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts -dcrop --png main".split(
+  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts --png main".split(
     " ",
   );
 
@@ -25,7 +25,7 @@ onmessage = async function (command: MessageEvent<WasiCommand>) {
   switch (command.data.type) {
     case "init":
       await initWasi(["arg0"].concat(defaultCommand));
-      postMessage({ type: "ready" } as WasiResponse);
+      postMessage({ type: "ready" } satisfies WasiResponse);
       return;
     case "run-wasi":
       startWasi(command.data.file);
@@ -37,7 +37,7 @@ function statusUpdate(message: string) {
   postMessage({
     type: "status-update",
     value: message,
-  } as WasiResponse);
+  } satisfies WasiResponse);
 }
 
 function logMessage(
@@ -48,7 +48,7 @@ function logMessage(
     type: "wasi-output",
     stream,
     value: message,
-  } as WasiResponse);
+  } satisfies WasiResponse);
 }
 
 let appdir = new PreopenDirectory("/app", new Map());
@@ -56,7 +56,7 @@ let inst: WebAssembly.WebAssemblyInstantiatedSource;
 let wasi: WASI;
 
 async function initWasi(args: string[]) {
-  statusUpdate(`Loading WASM module from: ${wasmModuleUrl}`);
+  statusUpdate(`Loading lilypond module from: ${wasmModuleUrl}`);
   const stdin = new OpenFile(new File([]));
   const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
   const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
@@ -69,24 +69,37 @@ async function initWasi(args: string[]) {
     fetch(wasmModuleUrl, { credentials: "same-origin" }),
     { wasi_snapshot_preview1: wasi.wasiImport },
   );
-  statusUpdate("WASM Initialized");
+  statusUpdate("Lilypond initialized");
 }
 
 async function startWasi(file: string) {
-  statusUpdate("Starting WASI application");
+  statusUpdate("Running lilypond...");
+  const startTime = performance.now();
   appdir.dir.contents.set("main.ly", new File(new TextEncoder().encode(file)));
   // @ts-expect-error some typing is off
   wasi.start(inst.instance);
-  statusUpdate("WASM execution complete");
+  statusUpdate("Lilypond execution complete");
+
+  const endTime = performance.now();
+  const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
 
   console.log("Files:", appdir.dir.contents);
   const generatedFile = appdir.dir.contents.get("main.png");
   if (generatedFile instanceof File) {
     const pngData = generatedFile.data;
-    postMessage({ type: "wasi-result", value: pngData } as WasiResponse);
+    postMessage({
+      type: "wasi-result",
+      value: pngData,
+      compilationTime: endTime - startTime,
+    } satisfies WasiResponse);
+    statusUpdate(`Generated PNG in ${durationSeconds} seconds`);
   } else {
-    statusUpdate("Unable to decode generated file");
+    statusUpdate(
+      `Unable to decode generated file (took ${durationSeconds} seconds)`,
+    );
   }
+  await initWasi(["arg0"].concat(defaultCommand));
+  postMessage({ type: "ready" } satisfies WasiResponse);
 }
 
 function wasiHack(wasi: WASI) {

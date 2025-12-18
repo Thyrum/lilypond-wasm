@@ -10,7 +10,7 @@ const worker = new Worker();
 
 const status = document.getElementById("status");
 const log = document.getElementById("log");
-const result = document.getElementById("result");
+const result = document.getElementById("result") as HTMLDivElement;
 const input = document.getElementById("source") as HTMLTextAreaElement;
 const compileButton = document.getElementById(
   "compile-button",
@@ -61,8 +61,11 @@ worker.onmessage = function (e: MessageEvent<WasiResponse>) {
         new Blob([content], { type: "image/png" }),
       );
       image.onclick = () => download_file("result.png", content, "image/png");
-      result!.appendChild(image);
-      compileButton.disabled = false;
+      result.insertBefore(image, result.firstChild);
+      addMessage(
+        log!,
+        `[lily-result] Compilation time: ${(e.data.compilationTime / 1000).toFixed(2)} seconds`,
+      );
       return;
   }
 };

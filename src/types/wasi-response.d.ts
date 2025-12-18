@@ -17,6 +17,7 @@ export interface WasiOutputResponse {
 export interface WasiResultResponse {
   type: "wasi-result";
   value: Uint8Array;
+  compilationTime: number;
 }
 
 export interface StatusUpdateResponse {
