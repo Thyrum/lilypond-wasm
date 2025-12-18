@@ -17,17 +17,18 @@ import type { WasiOutputResponse, WasiResponse } from "../types/wasi-response";
 //   );
 
 const defaultCommand =
-  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts --png main.ly".split(
+  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts -dcrop --png main".split(
     " ",
   );
 
-onmessage = function (command: MessageEvent<WasiCommand>) {
+onmessage = async function (command: MessageEvent<WasiCommand>) {
   switch (command.data.type) {
     case "init":
+      await initWasi(["arg0"].concat(defaultCommand));
       postMessage({ type: "ready" } as WasiResponse);
       return;
     case "run-wasi":
-      startWasi(["arg0"].concat(defaultCommand));
+      startWasi(command.data.file);
       return;
   }
 };
@@ -50,37 +51,35 @@ function logMessage(
   } as WasiResponse);
 }
 
-async function startWasi(args: string[]) {
+let appdir = new PreopenDirectory("/app", new Map());
+let inst: WebAssembly.WebAssemblyInstantiatedSource;
+let wasi: WASI;
+
+async function initWasi(args: string[]) {
   statusUpdate(`Loading WASM module from: ${wasmModuleUrl}`);
   const stdin = new OpenFile(new File([]));
   const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
   const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
   const root = new PreopenDirectory("/", new Map());
-  const appdir = new PreopenDirectory(
-    "/app",
-    new Map([
-      [
-        "main.ly",
-        new File(
-          new TextEncoder().encode(
-            "\\version \"2.24.2\"\n\\header { title = \"Hello, WASI!\" }\n{ c' d' e' f' g' a' b' c'' }",
-          ),
-        ),
-      ],
-    ]),
-  );
-  const fds = [stdin, stdout, stderr, root, appdir];
-  const wasi = new WASI(args, [], fds);
+  const currentDir = new PreopenDirectory(".", appdir.dir.contents);
+  const fds = [stdin, stdout, stderr, root, appdir, currentDir];
+  wasi = new WASI(args, [], fds);
   wasiHack(wasi);
-  const inst = await WebAssembly.instantiateStreaming(
+  inst = await WebAssembly.instantiateStreaming(
     fetch(wasmModuleUrl, { credentials: "same-origin" }),
     { wasi_snapshot_preview1: wasi.wasiImport },
   );
-  statusUpdate("WASM loaded, starting now");
+  statusUpdate("WASM Initialized");
+}
+
+async function startWasi(file: string) {
+  statusUpdate("Starting WASI application");
+  appdir.dir.contents.set("main.ly", new File(new TextEncoder().encode(file)));
   // @ts-expect-error some typing is off
   wasi.start(inst.instance);
   statusUpdate("WASM execution complete");
 
+  console.log("Files:", appdir.dir.contents);
   const generatedFile = appdir.dir.contents.get("main.png");
   if (generatedFile instanceof File) {
     const pngData = generatedFile.data;

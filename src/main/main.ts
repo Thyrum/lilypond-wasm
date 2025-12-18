@@ -11,6 +11,17 @@ const worker = new Worker();
 const status = document.getElementById("status");
 const log = document.getElementById("log");
 const result = document.getElementById("result");
+const input = document.getElementById("source") as HTMLTextAreaElement;
+const compileButton = document.getElementById(
+  "compile-button",
+) as HTMLButtonElement;
+compileButton.onclick = function () {
+  compileButton.disabled = true;
+  worker.postMessage({
+    type: "run-wasi",
+    file: input.value.trim(),
+  } satisfies WasiCommand);
+};
 
 function download_file(name: string, contents: BlobPart, mime_type: string) {
   mime_type = mime_type || "text/plain";
@@ -35,7 +46,7 @@ function download_file(name: string, contents: BlobPart, mime_type: string) {
 worker.onmessage = function (e: MessageEvent<WasiResponse>) {
   switch (e.data.type) {
     case "ready":
-      worker.postMessage({ type: "run-wasi" } as WasiCommand);
+      compileButton.disabled = false;
       return;
     case "status-update":
       status!.textContent = e.data.value;
@@ -51,7 +62,8 @@ worker.onmessage = function (e: MessageEvent<WasiResponse>) {
       );
       image.onclick = () => download_file("result.png", content, "image/png");
       result!.appendChild(image);
+      compileButton.disabled = false;
       return;
   }
 };
-worker.postMessage({ type: "init" } as WasiCommand);
+worker.postMessage({ type: "init" } satisfies WasiCommand);

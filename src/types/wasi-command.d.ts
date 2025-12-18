@@ -6,4 +6,5 @@ export interface InitCommand {
 
 export interface RunWasiCommand {
   type: "run-wasi";
+  file: string;
 }
