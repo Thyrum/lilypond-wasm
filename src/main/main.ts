@@ -5,6 +5,7 @@ import { addMessage } from "./log";
 
 import type { DirectoryMap, WasiResponse } from "../types/wasi-response";
 import type { WasiCommand } from "../types/wasi-command";
+import { decodeUrlData, encodeDataForUrl } from "./compress";
 
 const worker = new Worker();
 
@@ -17,23 +18,25 @@ const compileButton = document.getElementById(
 compileButton.onclick = function () {
   compileButton.disabled = true;
   const params = new URLSearchParams(window.location.search);
-  params.set("lilypond", encodeURIComponent(input.value.trim()));
-  history.replaceState(
-    null,
-    "",
-    `${window.location.pathname}?${params.toString()}`,
-  );
+  encodeDataForUrl(input.value.trim()).then((encoded) => {
+    params.set("ly", encoded);
+    history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}?${params.toString()}`,
+    );
+  });
   worker.postMessage({
     type: "run-wasi",
     file: input.value.trim(),
   } satisfies WasiCommand);
 };
 
-const lilypondCode = new URLSearchParams(window.location.search).get(
-  "lilypond",
-);
+const lilypondCode = new URLSearchParams(window.location.search).get("ly");
 if (lilypondCode) {
-  input.value = decodeURIComponent(lilypondCode);
+  decodeUrlData(lilypondCode).then((decoded) => {
+    input.value = decoded;
+  });
 }
 
 function download_file(name: string, blob: Blob) {
