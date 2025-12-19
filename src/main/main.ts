@@ -34,9 +34,15 @@ compileButton.onclick = function () {
 
 const lilypondCode = new URLSearchParams(window.location.search).get("ly");
 if (lilypondCode) {
-  decodeUrlData(lilypondCode).then((decoded) => {
-    input.value = decoded;
-  });
+  decodeUrlData(lilypondCode)
+    .then((decoded) => {
+      input.value = decoded;
+    })
+    .catch((e) => {
+      console.error("Error decoding lilypond data in URL:", e);
+      input.value =
+        "% Error decoding lilypond code from URL. Please enter your lilypond code here manually.";
+    });
 }
 
 function download_file(name: string, blob: Blob) {
