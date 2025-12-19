@@ -49,7 +49,8 @@ function getImages(dir: DirectoryMap): Map<string, Blob> {
       }
     } else if (content instanceof Uint8Array) {
       if (path.endsWith(".png")) {
-        result.set(path, new Blob([content], { type: "image/png" }));
+        // Use slice() to handle cases where content contains a SharedArrayBuffer
+        result.set(path, new Blob([content.slice()], { type: "image/png" }));
       }
     }
   }
