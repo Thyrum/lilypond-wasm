@@ -10,7 +10,6 @@ const worker = new Worker();
 
 const status = document.getElementById("status");
 const log = document.getElementById("log");
-const result = document.getElementById("result") as HTMLDivElement;
 const input = document.getElementById("source") as HTMLTextAreaElement;
 const compileButton = document.getElementById(
   "compile-button",
@@ -57,23 +56,35 @@ function getImages(dir: DirectoryMap): Map<string, Blob> {
   return result;
 }
 
-function displayImages(images: Map<string, Blob>, container: HTMLElement) {
-  const selector = document.createElement("select");
+function displayImages(images: Map<string, Blob>) {
+  const selector = document.getElementById("png-select") as HTMLSelectElement;
+  const downloadButton = document.getElementById(
+    "download-button",
+  ) as HTMLButtonElement;
+  const imageContainer = document.getElementById(
+    "image-container",
+  ) as HTMLDivElement;
   const image = document.createElement("img");
   selector.onchange = function () {
     image.src = window.URL.createObjectURL(images.get(selector.value)!);
+    downloadButton.onclick = () =>
+      download_file(selector.value, images.get(selector.value)!);
   };
   if (images.size > 0) {
+    selector.innerHTML = "";
     image.src = window.URL.createObjectURL(images.values().next().value!);
+    downloadButton.onclick = () =>
+      download_file(selector.value, images.get(selector.value)!);
+    downloadButton.disabled = false;
+  } else {
+    selector.innerHTML = "<option>Select png...</option>";
   }
   for (const filename of images.keys()) {
     selector.options.add(new Option(filename, filename));
   }
-  if (images.size <= 1) {
-    selector.disabled = true;
-  }
-  container.appendChild(selector);
-  container.appendChild(image);
+  selector.disabled = images.size <= 1;
+  imageContainer.innerHTML = "";
+  imageContainer.appendChild(image);
 }
 
 worker.onmessage = function (e: MessageEvent<WasiResponse>) {
@@ -95,8 +106,7 @@ worker.onmessage = function (e: MessageEvent<WasiResponse>) {
       console.log("WASI Result:", e.data);
       const images = getImages(e.data.files);
       console.log("Extracted images:", images);
-      result.innerHTML = "";
-      displayImages(images, result);
+      displayImages(images);
       return;
   }
 };

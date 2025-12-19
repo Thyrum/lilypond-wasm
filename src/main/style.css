@@ -1,3 +1,7 @@
+html {
+  --primary-color: #9090f0;
+}
+
 body,
 html {
   margin: 0;
@@ -49,7 +53,7 @@ html {
   height: 100%;
 }
 
-#result > img {
+#result img {
   max-width: 100%;
   height: auto;
   flex-grow: 0;
@@ -58,7 +62,27 @@ html {
 #result {
   overflow: auto;
   display: flex;
+  gap: 4px;
   flex-direction: column;
   align-items: start;
-  background-color: #f9f9f9;
+  background-color: #c0c0c0;
+  height: 100%;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+textarea {
+  border-radius: 4px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  width: 100%;
+}
+
+.spacer {
+  flex-grow: 1;
+  flex-basis: 1;
 }

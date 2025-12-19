@@ -22,7 +22,7 @@ import type {
 //   );
 
 const defaultCommand =
-  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts --png main".split(
+  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts -dcrop --png main".split(
     " ",
   );
 
@@ -69,6 +69,7 @@ function flattenDirectory(dir: Directory): DirectoryMap {
 }
 
 let appdir = new PreopenDirectory("/app", new Map());
+let tmpdir = new PreopenDirectory("/tmp", new Map());
 let inst: WebAssembly.WebAssemblyInstantiatedSource;
 let wasi: WASI;
 
@@ -78,7 +79,7 @@ async function initWasi(args: string[]) {
   const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
   const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
   const root = new PreopenDirectory("/", new Map());
-  const fds = [stdin, stdout, stderr, root, appdir];
+  const fds = [stdin, stdout, stderr, root, appdir, tmpdir];
   wasi = new WASI(args, [], fds, { debug: true });
   wasiHack(wasi);
   inst = await WebAssembly.instantiateStreaming(
@@ -100,6 +101,7 @@ async function startWasi(file: string) {
   const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
 
   console.log("Files:", appdir.dir.contents);
+  console.log("tmpdir:", tmpdir.dir.contents);
   postMessage({
     type: "wasi-result",
     files: flattenDirectory(appdir.dir),

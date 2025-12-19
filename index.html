@@ -15,11 +15,23 @@
 \header { title = "Hello, WASI!" }
 { c' d' e' f' g' a' b' c'' }
         </textarea>
-        <div><div id="status" class="status"></div><button id="compile-button" disabled>Compile</button></div>
+        <div>
+          <div id="status" class="status"></div>
+        </div>
         <div class="log" id="log"></div>
       </div>
       <div class="column">
-      <div id="result"></div>
+        <div id="result">
+          <div id="controls" class="controls">
+            <button disabled id="compile-button">Compile</button>
+            <select disabled id="png-select">
+              <option>Select png...</option>
+            </select>
+            <div class="spacer"></div>
+            <button disabled id="download-button">Download</button>
+          </div>
+          <div id="image-container"></div>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main/main.ts"></script>
