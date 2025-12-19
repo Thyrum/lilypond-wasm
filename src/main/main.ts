@@ -104,9 +104,9 @@ worker.onmessage = function (e: MessageEvent<WasiResponse>) {
         log!,
         `[lily-result] Compilation time: ${(e.data.compilationTime / 1000).toFixed(2)} seconds`,
       );
-      console.log("WASI Result:", e.data);
+      console.debug("WASI Result:", e.data);
       const images = getImages(e.data.files);
-      console.log("Extracted images:", images);
+      console.debug("Extracted images:", images);
       displayImages(images);
       return;
   }

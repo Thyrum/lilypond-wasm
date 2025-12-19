@@ -69,7 +69,6 @@ function flattenDirectory(dir: Directory): DirectoryMap {
 }
 
 let appdir = new PreopenDirectory("/app", new Map());
-let tmpdir = new PreopenDirectory("/tmp", new Map());
 let inst: WebAssembly.WebAssemblyInstantiatedSource;
 let wasi: WASI;
 
@@ -79,8 +78,8 @@ async function initWasi(args: string[]) {
   const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
   const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
   const root = new PreopenDirectory("/", new Map());
-  const fds = [stdin, stdout, stderr, root, appdir, tmpdir];
-  wasi = new WASI(args, [], fds, { debug: true });
+  const fds = [stdin, stdout, stderr, root, appdir];
+  wasi = new WASI(args, [], fds, { debug: import.meta.env.DEV });
   wasiHack(wasi);
   inst = await WebAssembly.instantiateStreaming(
     fetch(wasmModuleUrl, { credentials: "same-origin" }),
@@ -100,8 +99,7 @@ async function startWasi(file: string) {
   const endTime = performance.now();
   const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
 
-  console.log("Files:", appdir.dir.contents);
-  console.log("tmpdir:", tmpdir.dir.contents);
+  console.debug("Files:", appdir.dir.contents);
   postMessage({
     type: "wasi-result",
     files: flattenDirectory(appdir.dir),
