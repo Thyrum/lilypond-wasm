@@ -16,11 +16,25 @@ const compileButton = document.getElementById(
 ) as HTMLButtonElement;
 compileButton.onclick = function () {
   compileButton.disabled = true;
+  const params = new URLSearchParams(window.location.search);
+  params.set("lilypond", encodeURIComponent(input.value.trim()));
+  history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${params.toString()}`,
+  );
   worker.postMessage({
     type: "run-wasi",
     file: input.value.trim(),
   } satisfies WasiCommand);
 };
+
+const lilypondCode = new URLSearchParams(window.location.search).get(
+  "lilypond",
+);
+if (lilypondCode) {
+  input.value = decodeURIComponent(lilypondCode);
+}
 
 function download_file(name: string, blob: Blob) {
   var dlink = document.createElement("a");
