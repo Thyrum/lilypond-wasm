@@ -1,6 +1,7 @@
 export function addMessage(element: HTMLElement, message: string) {
   const atBottom =
-    element.scrollTop + element.offsetHeight === element.scrollHeight;
+    Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) <
+    1;
 
   element.textContent += message + "\n";
 
