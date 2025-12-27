@@ -16,20 +16,34 @@ import type {
   WasiResponse,
 } from "../types/wasi-response";
 
-// const command =
-//   "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts --png -dresolution=600 -dcrop main.ly".split(
-//     " ",
-//   );
+const commands: Map<string, string[]> = new Map([
+  [
+    "png",
+    "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts -dcrop --png main".split(
+      " ",
+    ),
+  ],
+  [
+    "svg",
+    "lilypond -dno-gs-load-fonts -dinclude-eps-fonts --svg -dcrop -dno-point-and-click main".split(
+      " ",
+    ),
+  ],
+  [
+    "pdf",
+    "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts -dcrop --pdf main".split(
+      " ",
+    ),
+  ],
+]);
 
-const defaultCommand =
-  "lilypond -dbackend=eps -dno-gs-load-fonts -dinclude-eps-fonts -dcrop --png main".split(
-    " ",
-  );
+let outputFormat: "png" | "svg" | "pdf" = "svg";
 
 onmessage = async function (command: MessageEvent<WasiCommand>) {
   switch (command.data.type) {
     case "init":
-      await initWasi(["arg0"].concat(defaultCommand));
+      outputFormat = command.data.outputFormat ?? "svg";
+      await initWasi(["arg0"].concat(commands.get(outputFormat)!));
       postMessage({ type: "ready" } satisfies WasiResponse);
       return;
     case "run-wasi":
@@ -71,20 +85,24 @@ function flattenDirectory(dir: Directory): DirectoryMap {
 let appdir = new PreopenDirectory("/app", new Map());
 let inst: WebAssembly.WebAssemblyInstantiatedSource;
 let wasi: WASI;
+let codeBuffer: ArrayBuffer | undefined = undefined;
 
 async function initWasi(args: string[]) {
   statusUpdate(`Loading lilypond module from: ${wasmModuleUrl}`);
   const stdin = new OpenFile(new File([]));
   const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
   const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
-  const root = new PreopenDirectory("/", new Map());
-  const fds = [stdin, stdout, stderr, root, appdir];
+  appdir = new PreopenDirectory("/app", new Map());
+  const fds = [stdin, stdout, stderr, appdir];
   wasi = new WASI(args, [], fds, { debug: import.meta.env.DEV });
   wasiHack(wasi);
-  inst = await WebAssembly.instantiateStreaming(
-    fetch(wasmModuleUrl, { credentials: "same-origin" }),
-    { wasi_snapshot_preview1: wasi.wasiImport },
-  );
+  if (!codeBuffer) {
+    const response = await fetch(wasmModuleUrl, { credentials: "same-origin" });
+    codeBuffer = await response.arrayBuffer();
+  }
+  inst = await WebAssembly.instantiate(codeBuffer, {
+    wasi_snapshot_preview1: wasi.wasiImport,
+  });
   statusUpdate("Lilypond initialized");
 }
 
@@ -106,7 +124,7 @@ async function startWasi(file: string) {
     compilationTime: endTime - startTime,
   } satisfies WasiResponse);
   statusUpdate(`Ran lilypond in ${durationSeconds} seconds`);
-  await initWasi(["arg0"].concat(defaultCommand));
+  await initWasi(["arg0"].concat(commands.get(outputFormat)!));
   postMessage({ type: "ready" } satisfies WasiResponse);
 }
 

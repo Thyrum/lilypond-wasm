@@ -6,17 +6,19 @@ import { addMessage } from "./log";
 import type { DirectoryMap, WasiResponse } from "../types/wasi-response";
 import type { WasiCommand } from "../types/wasi-command";
 import { decodeUrlData, encodeDataForUrl } from "./compress";
+import { FileDisplay } from "./file-display/file-display";
 
 const worker = new Worker();
 
-const status = document.getElementById("status");
-const log = document.getElementById("log");
-const input = document.getElementById("source") as HTMLTextAreaElement;
-const compileButton = document.getElementById(
-  "compile-button",
-) as HTMLButtonElement;
-compileButton.onclick = function () {
+const resultContainer = document.getElementById("result");
+
+const compileButton = document.createElement("button");
+compileButton.textContent = "Compile";
+compileButton.disabled = true;
+
+function compile() {
   compileButton.disabled = true;
+  fileTypeSelect.disabled = true;
   const params = new URLSearchParams(window.location.search);
   encodeDataForUrl(input.value.trim()).then((encoded) => {
     params.set("ly", encoded);
@@ -30,7 +32,33 @@ compileButton.onclick = function () {
     type: "run-wasi",
     file: input.value.trim(),
   } satisfies WasiCommand);
+}
+
+compileButton!.onclick = compile;
+
+const fileTypeSelect = document.createElement("select");
+fileTypeSelect.disabled = true;
+fileTypeSelect.id = "file-type-select";
+fileTypeSelect.title = "Select output file type";
+fileTypeSelect.innerHTML =
+  "<option value='svg' selected>SVG</option><option value='png'>PNG</option><option value='pdf'>PDF</option>";
+fileTypeSelect.onchange = () => {
+  compileButton.disabled = true;
+  fileTypeSelect.disabled = true;
+  worker.postMessage({
+    type: "init",
+    outputFormat: fileTypeSelect.value as "png" | "svg" | "pdf",
+  } satisfies WasiCommand);
 };
+
+const fileDisplay = new FileDisplay(resultContainer!, [
+  fileTypeSelect,
+  compileButton,
+]);
+
+const status = document.getElementById("status");
+const log = document.getElementById("log");
+const input = document.getElementById("source") as HTMLTextAreaElement;
 
 const lilypondCode = new URLSearchParams(window.location.search).get("ly");
 if (lilypondCode) {
@@ -45,21 +73,11 @@ if (lilypondCode) {
     });
 }
 
-function download_file(name: string, blob: Blob) {
-  var dlink = document.createElement("a");
-  dlink.download = name;
-  dlink.href = window.URL.createObjectURL(blob);
-  dlink.onclick = function () {
-    // revokeObjectURL needs a delay to work properly
-    var that = this as HTMLAnchorElement;
-    setTimeout(function () {
-      window.URL.revokeObjectURL(that.href);
-    }, 1500);
-  };
-
-  dlink.click();
-  dlink.remove();
-}
+const extensions = {
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+};
 
 function getImages(dir: DirectoryMap): Map<string, Blob> {
   let result = new Map<string, Blob>();
@@ -71,50 +89,26 @@ function getImages(dir: DirectoryMap): Map<string, Blob> {
         result.set(path + "/" + subPath, blob);
       }
     } else if (content instanceof Uint8Array) {
-      if (path.endsWith(".png")) {
+      const extension = path.slice(path.lastIndexOf("."));
+      if (extensions.hasOwnProperty(extension)) {
         // Use slice() to handle cases where content contains a SharedArrayBuffer
-        result.set(path, new Blob([content.slice()], { type: "image/png" }));
+        result.set(
+          path,
+          new Blob([content.slice()], {
+            type: extensions[extension as keyof typeof extensions],
+          }),
+        );
       }
     }
   }
   return result;
 }
 
-function displayImages(images: Map<string, Blob>) {
-  const selector = document.getElementById("png-select") as HTMLSelectElement;
-  const downloadButton = document.getElementById(
-    "download-button",
-  ) as HTMLButtonElement;
-  const imageContainer = document.getElementById(
-    "image-container",
-  ) as HTMLDivElement;
-  const image = document.createElement("img");
-  selector.onchange = function () {
-    image.src = window.URL.createObjectURL(images.get(selector.value)!);
-    downloadButton.onclick = () =>
-      download_file(selector.value, images.get(selector.value)!);
-  };
-  if (images.size > 0) {
-    selector.innerHTML = "";
-    image.src = window.URL.createObjectURL(images.values().next().value!);
-    downloadButton.onclick = () =>
-      download_file(selector.value, images.get(selector.value)!);
-    downloadButton.disabled = false;
-  } else {
-    selector.innerHTML = "<option>Select png...</option>";
-  }
-  for (const filename of images.keys()) {
-    selector.options.add(new Option(filename, filename));
-  }
-  selector.disabled = images.size <= 1;
-  imageContainer.innerHTML = "";
-  imageContainer.appendChild(image);
-}
-
 worker.onmessage = function (e: MessageEvent<WasiResponse>) {
   switch (e.data.type) {
     case "ready":
       compileButton.disabled = false;
+      fileTypeSelect.disabled = false;
       return;
     case "status-update":
       status!.textContent = e.data.value;
@@ -130,8 +124,11 @@ worker.onmessage = function (e: MessageEvent<WasiResponse>) {
       console.debug("WASI Result:", e.data);
       const images = getImages(e.data.files);
       console.debug("Extracted images:", images);
-      displayImages(images);
+      fileDisplay.setFiles(images);
       return;
   }
 };
-worker.postMessage({ type: "init" } satisfies WasiCommand);
+worker.postMessage({
+  type: "init",
+  outputFormat: fileTypeSelect.value as "svg" | "png" | "pdf",
+} satisfies WasiCommand);
