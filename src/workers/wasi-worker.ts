@@ -88,7 +88,6 @@ let wasi: WASI;
 let codeBuffer: ArrayBuffer | undefined = undefined;
 
 async function initWasi(args: string[]) {
-  statusUpdate(`Loading lilypond module from: ${wasmModuleUrl}`);
   const stdin = new OpenFile(new File([]));
   const stdout = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stdout"));
   const stderr = ConsoleStdout.lineBuffered((msg) => logMessage(msg, "stderr"));
@@ -97,8 +96,23 @@ async function initWasi(args: string[]) {
   wasi = new WASI(args, [], fds, { debug: import.meta.env.DEV });
   wasiHack(wasi);
   if (!codeBuffer) {
-    const response = await fetch(wasmModuleUrl, { credentials: "same-origin" });
-    codeBuffer = await response.arrayBuffer();
+    const cache = await caches.open("lilypond-wasm");
+    const cached = await cache.match(wasmModuleUrl);
+    if (cached) {
+      statusUpdate("Loading lilypond module from cache");
+      codeBuffer = await cached.arrayBuffer();
+    } else {
+      statusUpdate(`Loading lilypond module from ${wasmModuleUrl}`);
+      const keys = await cache.keys();
+      for (const request of keys) {
+        await cache.delete(request);
+      }
+      const response = await fetch(wasmModuleUrl, {
+        credentials: "same-origin",
+      });
+      cache.put(wasmModuleUrl, response.clone());
+      codeBuffer = await response.arrayBuffer();
+    }
   }
   inst = await WebAssembly.instantiate(codeBuffer, {
     wasi_snapshot_preview1: wasi.wasiImport,
