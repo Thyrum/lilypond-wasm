@@ -29,7 +29,7 @@ case "$1" in
     ;;
 esac
 
-curl -L "https://github.com/container2wasm/container2wasm/releases/download/v0.8.3/container2wasm-v0.8.3-linux-amd64.tar.gz" > c2w.tar.gz
+curl -L "https://github.com/container2wasm/container2wasm/releases/download/v0.8.4/container2wasm-v0.8.4-linux-amd64.tar.gz" > c2w.tar.gz
 tar -xvf c2w.tar.gz
 
 echo "::group::Building docker image"
